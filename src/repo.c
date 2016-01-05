@@ -111,10 +111,10 @@ _loadDataFromFile(char *fname)
         printf("Repo addition:");
         _displayBuffer(name);
         printf("\n");
-        for (int i = 0; i < pktBuffer->length; i++) {
-            printf("%02x", pktBuffer->bytes[i]);
-        }
-        printf("\n");
+        // for (int i = 0; i < pktBuffer->length; i++) {
+        //     printf("%02x", pktBuffer->bytes[i]);
+        // }
+        // printf("\n");
 
         kv->next = head;
         head = kv;
@@ -133,7 +133,7 @@ packetRepo_LoadFromFile(char *file)
 
     size_t count = 0;
     KeyValue *curr = repo->head;
-    while (repo->head != NULL) {
+    while (curr != NULL) {
         count++;
         curr = curr->next;
     }

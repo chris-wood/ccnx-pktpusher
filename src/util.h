@@ -16,7 +16,7 @@
 #define MAX_NUMBER_OF_SCTP_ISTREAMS 4
 #define MAX_NUMBER_OF_SCTP_ATTEMPTS 4
 
-#define DEBUG 0
+#define DEBUG 1
 
 typedef unsigned char bool;
 #define true 1

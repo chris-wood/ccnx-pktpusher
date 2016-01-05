@@ -19,15 +19,17 @@ struct link {
     int port;
     int socket;
     struct sockaddr_in sourceAddress;
+
     struct sockaddr_in clientAddress;
     unsigned int clientLen;
+
     char *hostAddress;
 };
 
 static int
 _udp_receive(Link *link, uint8_t *buffer)
 {
-    int numBytesReceived = recvfrom(link->socket, buffer, MTU, 0, (struct sockaddr *) &link->clientAddress, &link->clientLen);
+    int numBytesReceived = recvfrom(link->socket, buffer, MTU, 0, (struct sockaddr *) &(link->clientAddress), &(link->clientLen));
     if (numBytesReceived < 0) {
         LogFatal("recvfrom() failed");
     }
@@ -78,7 +80,11 @@ _create_udp_link(char *address, int port)
     bzero((char *) &link->sourceAddress, sizeof(link->sourceAddress));
     link->sourceAddress.sin_family = AF_INET;
     link->sourceAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-    link->sourceAddress.sin_port = htons(link->port);
+    link->sourceAddress.sin_port = htons(port);
+
+    // Set the link parameters
+    link->port = port;
+    link->clientLen = sizeof(link->clientAddress);
 
     if (bind(link->socket, (struct sockaddr *) &(link->sourceAddress), sizeof(link->sourceAddress)) < 0) {
         LogFatal("bind() failed");

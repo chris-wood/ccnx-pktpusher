@@ -36,7 +36,7 @@ main(int argc, char **argv)
     UDPServer server;
 
     if (argc != 3) {
-        fprintf(stderr, "Usage: %s <Server Port> <Directory>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <Server Port> <Data File>\n", argv[0]);
         exit(1);
     }
 
