@@ -13,6 +13,7 @@
 #include "util.h"
 #include "parser.h"
 #include "repo.h"
+#include "link.h"
 
 typedef struct {
 
@@ -46,29 +47,31 @@ main(int argc, char **argv)
     server.repo = packetRepo_LoadFromFile(argv[2]);
     size_t numPackets = packetRepo_GetNumberOfPackets(server.repo);
 
-    if ((server.socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        LogFatal("socket() failed");
-    }
+    Link *link = link_Create(LinkType_UDP, "127.0.0.1", server.port);
+    // if ((server.socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    //     LogFatal("socket() failed");
+    // }
+    //
+    // // set address reuse
+    // int optval = 1;
+    // setsockopt(server.socket, SOL_SOCKET, SO_REUSEADDR, (const void *) &optval , sizeof(int));
+    //
+    // bzero((char *) &server.serverAddress, sizeof(server.serverAddress));
+    // server.serverAddress.sin_family = AF_INET;
+    // server.serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+    // server.serverAddress.sin_port = htons(server.port);
+    //
+    // if (bind(server.socket, (struct sockaddr *) &(server.serverAddress), sizeof(server.serverAddress)) < 0) {
+    //     LogFatal("bind() failed");
+    // }
 
-    // set address reuse
-    int optval = 1;
-    setsockopt(server.socket, SOL_SOCKET, SO_REUSEADDR, (const void *) &optval , sizeof(int));
-
-    bzero((char *) &server.serverAddress, sizeof(server.serverAddress));
-    server.serverAddress.sin_family = AF_INET;
-    server.serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-    server.serverAddress.sin_port = htons(server.port);
-
-    if (bind(server.socket, (struct sockaddr *) &(server.serverAddress), sizeof(server.serverAddress)) < 0) {
-        LogFatal("bind() failed");
-    }
-
-    clientlen = sizeof(clientAddress);
+    // clientlen = sizeof(clientAddress);
     uint8_t buffer[MTU];
     size_t numReceived = 0;
     while (numReceived < numPackets) {
         bzero(buffer, MTU);
-        numBytesReceived = recvfrom(server.socket, buffer, MTU, 0, (struct sockaddr *) &clientAddress, &clientlen);
+        numBytesReceived = link_Receive(link, buffer);
+        // numBytesReceived = recvfrom(server.socket, buffer, MTU, 0, (struct sockaddr *) &clientAddress, &clientlen);
         if (numBytesReceived < 0) {
             LogFatal("recvfrom() failed");
         }
@@ -92,10 +95,13 @@ main(int argc, char **argv)
             // }
             // printf("\n");
 #endif
-            if (sendto(server.socket, content->bytes, content->length, 0,
-            	(struct sockaddr *) &clientAddress, clientlen) < 0) {
+            if (link_Send(link, content->bytes, content->length) < 0) {
                 LogFatal("Error sending content object response\n");
             }
+            // if (sendto(server.socket, content->bytes, content->length, 0,
+            // 	(struct sockaddr *) &clientAddress, clientlen) < 0) {
+            //     LogFatal("Error sending content object response\n");
+            // }
         } else {
             LogFatal("Not found.\n");
         }
