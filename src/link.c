@@ -20,6 +20,7 @@ struct link {
     int socket;
     struct sockaddr_in sourceAddress;
 
+    int clientSocket;
     struct sockaddr_in clientAddress;
     unsigned int clientLen;
 
@@ -47,7 +48,15 @@ _udp_send(Link *link, uint8_t *buffer, int length)
 static int
 _tcp_receive(Link *link, uint8_t *buffer)
 {
-    return 0;
+    int recvMsgSize = recv(link->clientSocket, buffer, MTU, 0);
+    return recvMsgSize;
+}
+
+static int
+_tcp_send(Link *link, uint8_t *buffer, int length)
+{
+    int numSent = send(link->clientSocket, buffer, length, 0);
+    return numSent;
 }
 
 static Link *
@@ -67,6 +76,10 @@ _create_udp_link(char *address, int port)
 {
     Link *link = _create_link();
     link->type = LinkType_UDP;
+    link->port = port;
+    link->receiveFunction = _udp_receive;
+    link->sendFunction = _udp_send;
+    link->clientLen = sizeof(link->clientAddress);
 
     if ((link->socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         LogFatal("socket() failed");
@@ -80,18 +93,11 @@ _create_udp_link(char *address, int port)
     bzero((char *) &link->sourceAddress, sizeof(link->sourceAddress));
     link->sourceAddress.sin_family = AF_INET;
     link->sourceAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-    link->sourceAddress.sin_port = htons(port);
-
-    // Set the link parameters
-    link->port = port;
-    link->clientLen = sizeof(link->clientAddress);
+    link->sourceAddress.sin_port = htons(link->port);
 
     if (bind(link->socket, (struct sockaddr *) &(link->sourceAddress), sizeof(link->sourceAddress)) < 0) {
         LogFatal("bind() failed");
     }
-
-    link->receiveFunction = _udp_receive;
-    link->sendFunction = _udp_send;
 
     return link;
 }
@@ -101,6 +107,36 @@ _create_tcp_link(char *address, int port)
 {
     Link *link = _create_link();
     link->type = LinkType_TCP;
+    link->port = port;
+    link->clientLen = sizeof(link->clientAddress);
+    link->receiveFunction = _tcp_receive;
+    link->sendFunction = _tcp_send;
+
+    if ((link->socket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+        LogFatal("socket() failed");
+    }
+
+    memset(&(link->sourceAddress), 0, sizeof(link->sourceAddress));
+    link->sourceAddress.sin_family = AF_INET;
+    link->sourceAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+    link->sourceAddress.sin_port = htons(link->port);
+
+    int on = 1;
+    if (setsockopt(link->socket, SOL_SOCKET, SO_REUSEADDR, (const char *) &on, sizeof(on)) < 0) {
+        LogFatal("setsockopt() failed");
+    }
+
+    if (bind(link->socket, (struct sockaddr *) &(link->sourceAddress), sizeof(link->sourceAddress)) < 0) {
+        LogFatal("bind() failed");
+    }
+
+    if (listen(link->socket, MAX_NUMBER_OF_TCP_CONNECTIONS) < 0) {
+        LogFatal("listen() failed");
+    }
+
+    if ((link->clientSocket = accept(link->socket, (struct sockaddr *) &(link->clientAddress), &link->clientLen)) < 0) {
+        LogFatal("accept() failed");
+    }
 
     return link;
 }
