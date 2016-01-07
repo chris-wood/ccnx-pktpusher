@@ -15,17 +15,6 @@
 #include "repo.h"
 #include "link.h"
 
-typedef struct {
-
-    // TODO: generalize this into a link (UDP, TCP, etc...)
-    int port;
-    int socket;
-    struct sockaddr_in serverAddress;
-    char *hostAddress;
-
-    PacketRepo *repo;
-} UDPServer;
-
 int
 main(int argc, char **argv)
 {
@@ -33,7 +22,6 @@ main(int argc, char **argv)
     struct sockaddr_in clientAddress;
     struct hostent *hostp;
     int numBytesReceived;
-    UDPServer server;
 
     if (argc != 3) {
         fprintf(stderr, "Usage: %s <Server Port> <Data File>\n", argv[0]);
@@ -41,37 +29,21 @@ main(int argc, char **argv)
     }
 
     // Setup the server port
-    server.port = atoi(argv[1]);
+    int port = atoi(argv[1]);
 
     // Load the contents of the directory into memory
-    server.repo = packetRepo_LoadFromFile(argv[2]);
-    size_t numPackets = packetRepo_GetNumberOfPackets(server.repo);
+    PacketRepo *repo = packetRepo_LoadFromFile(argv[2]);
+    size_t numPackets = packetRepo_GetNumberOfPackets(repo);
 
-    Link *link = link_Listen(LinkType_TCP, "127.0.0.1", server.port);
-    // if ((server.socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    //     LogFatal("socket() failed");
-    // }
-    //
-    // // set address reuse
-    // int optval = 1;
-    // setsockopt(server.socket, SOL_SOCKET, SO_REUSEADDR, (const void *) &optval , sizeof(int));
-    //
-    // bzero((char *) &server.serverAddress, sizeof(server.serverAddress));
-    // server.serverAddress.sin_family = AF_INET;
-    // server.serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-    // server.serverAddress.sin_port = htons(server.port);
-    //
-    // if (bind(server.socket, (struct sockaddr *) &(server.serverAddress), sizeof(server.serverAddress)) < 0) {
-    //     LogFatal("bind() failed");
-    // }
+    // Create the link
+    // TODO: the address shouldn't be fixed
+    Link *link = link_Listen(LinkType_TCP, "127.0.0.1", port);
 
-    // clientlen = sizeof(clientAddress);
     uint8_t buffer[MTU];
     size_t numReceived = 0;
     while (numReceived < numPackets) {
         bzero(buffer, MTU);
         numBytesReceived = link_Receive(link, buffer);
-        // numBytesReceived = recvfrom(server.socket, buffer, MTU, 0, (struct sockaddr *) &clientAddress, &clientlen);
         if (numBytesReceived < 0) {
             LogFatal("recvfrom() failed");
         }
@@ -90,27 +62,20 @@ main(int argc, char **argv)
         if (content != NULL) {
 #if DEBUG
             printf("Sending [%zu]:\n", content->length);
-            // for (int i = 0; i < content->length; i++) {
-            //     printf("%02x", content->bytes[i]);
-            // }
-            // printf("\n");
+            for (int i = 0; i < content->length; i++) {
+                printf("%02x", content->bytes[i]);
+            }
+            printf("\n");
 #endif
             if (link_Send(link, content->bytes, content->length) < 0) {
                 LogFatal("Error sending content object response\n");
             }
-            // if (sendto(server.socket, content->bytes, content->length, 0,
-            // 	(struct sockaddr *) &clientAddress, clientlen) < 0) {
-            //     LogFatal("Error sending content object response\n");
-            // }
         } else {
             LogFatal("Not found");
         }
 
         numReceived++;
-        printf("num sent %d\n", numReceived);
     }
-
-    close(server.socket);
 
     return 0;
 }
