@@ -247,12 +247,6 @@ initializePusher(PusherOptions *options)
     }
 
     pusher->table = buildPacketTableFromFile(options->packetFileName);
-    // pusher->socketfd = socket(AF_INET, SOCK_DGRAM, 0);
-    // bzero(&pusher->fwdaddr, sizeof(pusher->fwdaddr));
-    // pusher->fwdaddr.sin_family = AF_INET;
-    // pusher->fwdaddr.sin_addr.s_addr = inet_addr(options->fwdIPAddress);
-    // pusher->fwdaddr.sin_port = htons(options->fwdPort);
-
     pusher->outstanding = 0;
     pusher->windowSize = options->windowSize;
     pusher->sleep = options->sleep;
@@ -283,10 +277,6 @@ runPusher(Pusher *pusher)
             if (link_Send(pusher->link, packet->bytes, packet->length) != packet->length) {
                 LogFatal("send() failed");
             }
-            // if (sendto(pusher->socketfd, packet->bytes, packet->length, 0,
-            //     (struct sockaddr *) &pusher->fwdaddr, sizeof(pusher->fwdaddr)) != packet->length) {
-            //     LogFatal("send() failed");
-            // }
             packetNumber++;
         }
         packetNumber = 0;
@@ -312,7 +302,6 @@ runPusherPerPacket(Pusher *pusher)
     struct timeval tv;
     tv.tv_sec = 1; // 1s timeout
     tv.tv_usec = 0;
-    // setsockopt(pusher->socketfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval));
     link_SetTimeout(pusher->link, tv);
 
     // Ring buffer to store packets that were just sent
@@ -349,11 +338,6 @@ runPusherPerPacket(Pusher *pusher)
                     LogFatal("send() failed");
                 }
 
-                // if (sendto(pusher->socketfd, packet->bytes, packet->length, 0,
-                //     (struct sockaddr *) &pusher->fwdaddr, sizeof(pusher->fwdaddr)) != packet->length) {
-                //     LogFatal("send() failed");
-                // }
-
                 // Log the start time
                 stats->sentTime = getCurrentTimeUs();
                 stats->size = packet->length;
@@ -382,12 +366,11 @@ runPusherPerPacket(Pusher *pusher)
                 fprintf(stderr, "Trying to receive a packet...\n");
 #endif
                 bytesReceived = link_Receive(pusher->link, serverResponseBuffer);
-                // bytesReceived = recv(pusher->socketfd, serverResponseBuffer, MTU, 0);
                 if (bytesReceived > 0) {
                     totalBytesRcvd += bytesReceived;
 
-                    fprintf(stderr, "Pusher received [%d]: \n", bytesReceived);
 #if DEBUG
+                    fprintf(stderr, "Pusher received [%d]: \n", bytesReceived);
                     for (int i = 0; i < bytesReceived; i++) {
                         printf("%02x", serverResponseBuffer[i]);
                     }
