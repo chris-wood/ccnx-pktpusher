@@ -25,5 +25,7 @@ void link_SetTimeout(Link *link, struct timeval tv);
 int link_Receive(Link *link, uint8_t *buffer);
 int link_Send(Link *link, uint8_t *buffer, int length);
 
+void link_Close(Link *link);
+
 
 #endif // link_h_

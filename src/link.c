@@ -243,3 +243,12 @@ link_Send(Link *link, uint8_t *buffer, int length)
 {
     return link->sendFunction(link, buffer, length);
 }
+
+void
+link_Close(Link *link)
+{
+    close(link->socket);
+    if (link->socket != link->targetSocket) {
+        close(link->targetSocket);
+    }
+}
