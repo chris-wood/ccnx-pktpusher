@@ -12,6 +12,7 @@
 
 #include "util.h"
 #include "parser.h"
+#include "link.h"
 
 typedef enum {
     PusherMode_Ping,
@@ -37,6 +38,8 @@ typedef struct PusherOptions {
     bool showUsageStats;
     bool sleep;
     size_t windowSize;
+    size_t transportType;
+
     PusherMode mode;
     char *fwdIPAddress;
     int fwdPort;
@@ -55,6 +58,9 @@ typedef struct Pusher {
     size_t windowSize;
     size_t outstanding;
 
+    Link *link;
+
+    // TODO: unused.
     int socketfd;
     struct sockaddr_in fwdaddr;
 } Pusher;
@@ -63,6 +69,7 @@ void
 showUsage()
 {
     printf("Usage: pusher <options> <server IP address> <port> <packet file>\n");
+    printf(" -t       --transport         Transport mechansm (0 = UDP, 1 = TCP, 2 = ETH)");
     printf(" -p       --ping              Stop-and-wait mode (with intermittent sleep)\n");
     printf(" -f       --flood             Flood mode\n");
     printf(" -r       --rusage            Print rusage\n");
@@ -74,10 +81,11 @@ PusherOptions *
 parseCommandLineOptions(int argc, char **argv)
 {
     static struct option longopts[] = {
+            { "transport",  required_argument,  NULL,'t' },
             { "ping",       no_argument,        NULL,'p' },
             { "flood",      no_argument,        NULL,'f' },
             { "rusage",     no_argument,        NULL,'r'},
-            { "w",          required_argument,  NULL,'w'},
+            { "window",     required_argument,  NULL,'w'},
             { "help",       no_argument,        NULL,'h'},
             { NULL,0,NULL,0}
     };
@@ -93,7 +101,7 @@ parseCommandLineOptions(int argc, char **argv)
 
     int c;
     while (optind < argc) {
-        if ((c = getopt_long(argc, argv, "rphfw:", longopts, NULL)) != -1) {
+        if ((c = getopt_long(argc, argv, "rphfw:t:", longopts, NULL)) != -1) {
             switch(c) {
                 case 'r':
                     options->showUsageStats = true;
@@ -108,6 +116,9 @@ parseCommandLineOptions(int argc, char **argv)
                     break;
                 case 'w':
                     sscanf(optarg, "%zu", &(options->windowSize));
+                    break;
+                case 't':
+                    sscanf(optarg, "%zu", &(options->transportType));
                     break;
                 case 'h':
                     showUsage();
@@ -223,12 +234,24 @@ initializePusher(PusherOptions *options)
 {
     Pusher *pusher = (Pusher *) malloc(sizeof(Pusher));
 
+    switch (options->transportType) {
+        case LinkType_UDP:
+            pusher->link = link_Connect(LinkType_UDP, options->fwdIPAddress, options->fwdPort);
+            break;
+        case LinkType_TCP:
+            pusher->link = link_Connect(LinkType_TCP, options->fwdIPAddress, options->fwdPort);
+            break;
+        default:
+            fprintf(stderr, "Error: invalid transport type provided.");
+            return NULL;
+    }
+
     pusher->table = buildPacketTableFromFile(options->packetFileName);
-    pusher->socketfd = socket(AF_INET, SOCK_DGRAM, 0);
-    bzero(&pusher->fwdaddr, sizeof(pusher->fwdaddr));
-    pusher->fwdaddr.sin_family = AF_INET;
-    pusher->fwdaddr.sin_addr.s_addr = inet_addr(options->fwdIPAddress);
-    pusher->fwdaddr.sin_port = htons(options->fwdPort);
+    // pusher->socketfd = socket(AF_INET, SOCK_DGRAM, 0);
+    // bzero(&pusher->fwdaddr, sizeof(pusher->fwdaddr));
+    // pusher->fwdaddr.sin_family = AF_INET;
+    // pusher->fwdaddr.sin_addr.s_addr = inet_addr(options->fwdIPAddress);
+    // pusher->fwdaddr.sin_port = htons(options->fwdPort);
 
     pusher->outstanding = 0;
     pusher->windowSize = options->windowSize;
@@ -256,15 +279,20 @@ runPusher(Pusher *pusher)
     TimeBlockUs(stderr, {
         while (packetNumber < pusher->table->numberOfPackets) {
             Buffer *packet = pusher->table->packets[packetNumber];
-            if (sendto(pusher->socketfd, packet->bytes, packet->length, 0,
-                (struct sockaddr *) &pusher->fwdaddr, sizeof(pusher->fwdaddr)) != packet->length) {
+
+            if (link_Send(pusher->link, packet->bytes, packet->length) != packet->length) {
                 LogFatal("send() failed");
             }
+            // if (sendto(pusher->socketfd, packet->bytes, packet->length, 0,
+            //     (struct sockaddr *) &pusher->fwdaddr, sizeof(pusher->fwdaddr)) != packet->length) {
+            //     LogFatal("send() failed");
+            // }
             packetNumber++;
         }
         packetNumber = 0;
         while (packetNumber < pusher->table->numberOfPackets) {
-            bytesReceived = recv(pusher->socketfd, serverResponseBuffer, MTU, 0);
+            bytesReceived = link_Receive(pusher->link, serverResponseBuffer);
+            // bytesReceived = recv(pusher->socketfd, serverResponseBuffer, MTU, 0);
             totalBytesRcvd += bytesReceived;
             packetNumber++;
         }
@@ -284,7 +312,8 @@ runPusherPerPacket(Pusher *pusher)
     struct timeval tv;
     tv.tv_sec = 1; // 1s timeout
     tv.tv_usec = 0;
-    setsockopt(pusher->socketfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval));
+    // setsockopt(pusher->socketfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval));
+    link_SetTimeout(pusher->link, tv);
 
     // Ring buffer to store packets that were just sent
     int queueStart = 0;
@@ -316,10 +345,14 @@ runPusherPerPacket(Pusher *pusher)
                 packet = pusher->table->packets[packetNumber];
                 stats = pusher->table->stats[packetNumber];
 
-                if (sendto(pusher->socketfd, packet->bytes, packet->length, 0,
-                    (struct sockaddr *) &pusher->fwdaddr, sizeof(pusher->fwdaddr)) != packet->length) {
+                if (link_Send(pusher->link, packet->bytes, packet->length) != packet->length) {
                     LogFatal("send() failed");
                 }
+
+                // if (sendto(pusher->socketfd, packet->bytes, packet->length, 0,
+                //     (struct sockaddr *) &pusher->fwdaddr, sizeof(pusher->fwdaddr)) != packet->length) {
+                //     LogFatal("send() failed");
+                // }
 
                 // Log the start time
                 stats->sentTime = getCurrentTimeUs();
@@ -348,7 +381,8 @@ runPusherPerPacket(Pusher *pusher)
 #if DEBUG
                 fprintf(stderr, "Trying to receive a packet...\n");
 #endif
-                bytesReceived = recv(pusher->socketfd, serverResponseBuffer, MTU, 0);
+                bytesReceived = link_Receive(pusher->link, serverResponseBuffer);
+                // bytesReceived = recv(pusher->socketfd, serverResponseBuffer, MTU, 0);
                 if (bytesReceived > 0) {
                     totalBytesRcvd += bytesReceived;
 

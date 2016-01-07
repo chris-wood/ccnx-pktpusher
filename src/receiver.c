@@ -47,7 +47,7 @@ main(int argc, char **argv)
     server.repo = packetRepo_LoadFromFile(argv[2]);
     size_t numPackets = packetRepo_GetNumberOfPackets(server.repo);
 
-    Link *link = link_Create(LinkType_UDP, "127.0.0.1", server.port);
+    Link *link = link_Listen(LinkType_TCP, "127.0.0.1", server.port);
     // if ((server.socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
     //     LogFatal("socket() failed");
     // }
@@ -103,10 +103,11 @@ main(int argc, char **argv)
             //     LogFatal("Error sending content object response\n");
             // }
         } else {
-            LogFatal("Not found.\n");
+            LogFatal("Not found");
         }
 
         numReceived++;
+        printf("num sent %d\n", numReceived);
     }
 
     close(server.socket);

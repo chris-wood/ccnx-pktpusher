@@ -108,9 +108,11 @@ _loadDataFromFile(char *fname)
         kv->keylen = name->length;
         kv->value = pktBuffer;
 
+#if DEBUG
         printf("Repo addition:");
         _displayBuffer(name);
         printf("\n");
+#endif
         // for (int i = 0; i < pktBuffer->length; i++) {
         //     printf("%02x", pktBuffer->bytes[i]);
         // }

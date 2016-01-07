@@ -10,27 +10,26 @@
 
 #include "util.h"
 
-
 struct link {
     LinkType type;
+
     int (*receiveFunction)(Link *, uint8_t *);
     int (*sendFunction)(Link *, uint8_t *, int);
 
     int port;
     int socket;
     struct sockaddr_in sourceAddress;
-
-    int clientSocket;
-    struct sockaddr_in clientAddress;
-    unsigned int clientLen;
-
     char *hostAddress;
+
+    int targetSocket;
+    struct sockaddr_in targetAddress;
+    unsigned int targetAddressLength;
 };
 
 static int
 _udp_receive(Link *link, uint8_t *buffer)
 {
-    int numBytesReceived = recvfrom(link->socket, buffer, MTU, 0, (struct sockaddr *) &(link->clientAddress), &(link->clientLen));
+    int numBytesReceived = recvfrom(link->socket, buffer, MTU, 0, (struct sockaddr *) &(link->targetAddress), &(link->targetAddressLength));
     if (numBytesReceived < 0) {
         LogFatal("recvfrom() failed");
     }
@@ -41,21 +40,21 @@ static int
 _udp_send(Link *link, uint8_t *buffer, int length)
 {
     int val = sendto(link->socket, buffer, length, 0,
-        (struct sockaddr *) &link->clientAddress, link->clientLen);
+        (struct sockaddr *) &link->targetAddress, link->targetAddressLength);
     return val;
 }
 
 static int
 _tcp_receive(Link *link, uint8_t *buffer)
 {
-    int recvMsgSize = recv(link->clientSocket, buffer, MTU, 0);
+    int recvMsgSize = recv(link->targetSocket, buffer, MTU, 0);
     return recvMsgSize;
 }
 
 static int
 _tcp_send(Link *link, uint8_t *buffer, int length)
 {
-    int numSent = send(link->clientSocket, buffer, length, 0);
+    int numSent = send(link->targetSocket, buffer, length, 0);
     return numSent;
 }
 
@@ -72,14 +71,14 @@ _create_link()
 }
 
 static Link *
-_create_udp_link(char *address, int port)
+_create_udp_link_listener(char *address, int port)
 {
     Link *link = _create_link();
     link->type = LinkType_UDP;
     link->port = port;
     link->receiveFunction = _udp_receive;
     link->sendFunction = _udp_send;
-    link->clientLen = sizeof(link->clientAddress);
+    link->targetAddressLength = sizeof(link->targetAddress);
 
     if ((link->socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         LogFatal("socket() failed");
@@ -103,12 +102,12 @@ _create_udp_link(char *address, int port)
 }
 
 static Link *
-_create_tcp_link(char *address, int port)
+_create_tcp_link_listener(char *address, int port)
 {
     Link *link = _create_link();
     link->type = LinkType_TCP;
     link->port = port;
-    link->clientLen = sizeof(link->clientAddress);
+    link->targetAddressLength = sizeof(link->targetAddress);
     link->receiveFunction = _tcp_receive;
     link->sendFunction = _tcp_send;
 
@@ -134,15 +133,87 @@ _create_tcp_link(char *address, int port)
         LogFatal("listen() failed");
     }
 
-    if ((link->clientSocket = accept(link->socket, (struct sockaddr *) &(link->clientAddress), &link->clientLen)) < 0) {
+    if ((link->targetSocket = accept(link->socket, (struct sockaddr *) &(link->targetAddress), &link->targetAddressLength)) < 0) {
         LogFatal("accept() failed");
     }
+
+    printf("ACCEPTED!\n");
+
+    return link;
+}
+
+static Link *
+_create_udp_link(char *address, int port)
+{
+    Link *link = _create_link();
+    link->type = LinkType_UDP;
+    link->port = port;
+    link->targetAddressLength = sizeof(link->targetAddress);
+    link->receiveFunction = _udp_receive;
+    link->sendFunction = _udp_send;
+
+    if ((link->socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        LogFatal("socket() failed");
+    }
+
+    memset(&(link->targetAddress), 0, sizeof(link->targetAddress));
+    link->targetAddress.sin_family = AF_INET;
+    link->targetAddress.sin_addr.s_addr = inet_addr(address);
+    link->targetAddress.sin_port = htons(link->port);
+
+    return link;
+}
+
+static Link *
+_create_tcp_link(char *address, int port)
+{
+    Link *link = _create_link();
+    link->type = LinkType_TCP;
+    link->port = port;
+    link->targetAddressLength = sizeof(link->targetAddress);
+    link->receiveFunction = _tcp_receive;
+    link->sendFunction = _tcp_send;
+
+    if ((link->socket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+        LogFatal("socket() failed");
+    }
+    link->targetSocket = link->socket;
+
+    memset(&(link->targetAddress), 0, sizeof(link->targetAddress));
+    link->targetAddress.sin_family = AF_INET;
+    link->targetAddress.sin_addr.s_addr = inet_addr(address);
+    link->targetAddress.sin_port = htons(link->port);
+
+    int on = 1;
+    if (setsockopt(link->socket, SOL_SOCKET, SO_REUSEADDR, (const char *) &on, sizeof(on)) < 0) {
+        LogFatal("setsockopt() failed");
+    }
+
+    if (connect(link->socket, (struct sockaddr *) &link->targetAddress, sizeof(link->targetAddress)) < 0) {
+        LogFatal("connect() failed");
+    }
+
+    printf("CONNECTED!\n");
 
     return link;
 }
 
 Link *
-link_Create(LinkType type, char *address, int port)
+link_Listen(LinkType type, char *address, int port)
+{
+    switch (type) {
+        case LinkType_UDP:
+            return _create_udp_link_listener(address, port);
+        case LinkType_TCP:
+            return _create_tcp_link_listener(address, port);
+        default:
+            fprintf(stderr, "Error: invalid LinkType specified: %d", type);
+            return NULL;
+    }
+}
+
+Link *
+link_Connect(LinkType type, char *address, int port)
 {
     switch (type) {
         case LinkType_UDP:
@@ -153,6 +224,12 @@ link_Create(LinkType type, char *address, int port)
             fprintf(stderr, "Error: invalid LinkType specified: %d", type);
             return NULL;
     }
+}
+
+void
+link_SetTimeout(Link *link, struct timeval tv)
+{
+    setsockopt(link->socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval));
 }
 
 int
