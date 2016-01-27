@@ -38,5 +38,19 @@ build an indexes that allow fast lookup and retrieval.
 
 ## Forwarder Connections
 
-Currently, only UDP connections are supported for the PARC Metis forwarder.
+UDP and TCP connections for the PARC Metis forwarder are supported.
 
+## Programmable Packets
+
+One feature of ccnx-pktpusher is that it allows programmable packets from the 
+flux tool to be "executed" as a regular program. The ccnx-pktpusher implements
+a VM that is capable of executing binary programmable packet (.pp) files output
+from flux. This VM, called PPVM, has the following ISA (inspired by the JVM [1]):
+
+### PPVM ISA
+
+- TODO
+
+# References
+
+- [1] https://docs.oracle.com/javase/specs/jvms/se7/html/
