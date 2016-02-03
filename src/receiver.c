@@ -58,7 +58,7 @@ main(int argc, char **argv)
         Buffer *hash = _readContentObjectHash(buffer + 8, len - 8);
 
         // 2) index into the repo to get the packet
-        Buffer *content = packetRepo_Lookup(server.repo, name, hash);
+        Buffer *content = packetRepo_Lookup(repo, name, hash);
         if (content != NULL) {
 #if DEBUG
             printf("Sending [%zu]:\n", content->length);
