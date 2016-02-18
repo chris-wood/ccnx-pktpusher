@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>ccnx-pktpusher by chris-wood</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-dark.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="without-description">
+        <h1>ccnx-pktpusher</h1>
+        <p></p>
+        <p class="view"><a href="https://github.com/chris-wood/ccnx-pktpusher">View the Project on GitHub <small>chris-wood/ccnx-pktpusher</small></a></p>
+        <ul>
+          <li><a href="https://github.com/chris-wood/ccnx-pktpusher/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/chris-wood/ccnx-pktpusher/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/chris-wood/ccnx-pktpusher">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a id="ccnx-pktpusher" class="anchor" href="#ccnx-pktpusher" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>ccnx-pktpusher</h1>
+
+<h2>
+<a id="overview" class="anchor" href="#overview" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Overview</h2>
+
+<p>This is a project to stress test CCNx-compliant forwarders. The test
+consists of three elements: a packet sender, receiver, and forwarder. 
+The sender is connected to the forwarder to push packets through
+the forwarder at a given rate (currently: as fast as possible)
+and the receiver is connected to the forwarder to receive packets and 
+respond with pre-computed packets. This general setup is shown below.</p>
+
+<pre><code>     sender window
+    +-+-+-+-+-+-+-+
+    | | | | | | | |
+    +---+-+++-+---+
++--------+   |    +-----------+       +----------+
+|        +---+----&gt;           +-------&gt;          |
+| Sender |        | Forwarder |       | Receiver |
+|        &lt;--------+           &lt;-------+          |
++--------+        +-----------+       +----------+
+</code></pre>
+
+<p>The sender controls the rate at which packets are sent by windowing.
+That is, packets are sent and inserted into the window until the 
+window is full. The sender then attempts to receive packets. To keep
+the forwarder busy, sending is always given priority over receiving. 
+This means that the window is usually full for a given packet load. </p>
+
+<h2>
+<a id="packet-generation" class="anchor" href="#packet-generation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Packet Generation</h2>
+
+<p>Packets are generated using the <a href="https://github.com/chris-wood/ccnx-pktgen">ccnx-pktgen tool</a>.
+This can generate interest and content object pairs by specifying the 
+name size, name component length, and the content object payload size. 
+The tool will create a pair of binary files containing a sequence of wire-encoded
+interest and content objects. The sender and receiver use these files to 
+build an indexes that allow fast lookup and retrieval. </p>
+
+<h2>
+<a id="forwarder-connections" class="anchor" href="#forwarder-connections" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Forwarder Connections</h2>
+
+<p>UDP and TCP connections for the PARC Metis forwarder are supported.</p>
+
+<h2>
+<a id="programmable-packets" class="anchor" href="#programmable-packets" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Programmable Packets</h2>
+
+<p>One feature of ccnx-pktpusher is that it allows programmable packets from the 
+flux tool to be "executed" as a regular program. The ccnx-pktpusher implements
+a VM that is capable of executing binary programmable packet (.pp) files output
+from flux. This VM, called PPVM, has the following ISA (inspired by the JVM [1]):</p>
+
+<h3>
+<a id="ppvm-isa" class="anchor" href="#ppvm-isa" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>PPVM ISA</h3>
+
+<ul>
+<li>TODO</li>
+</ul>
+
+<h1>
+<a id="references" class="anchor" href="#references" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>References</h1>
+
+<ul>
+<li>[1] <a href="https://docs.oracle.com/javase/specs/jvms/se7/html/">https://docs.oracle.com/javase/specs/jvms/se7/html/</a>
+</li>
+</ul>
+      </section>
+    </div>
+    <footer>
+      <p>Project maintained by <a href="https://github.com/chris-wood">chris-wood</a></p>
+      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
+    </footer>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
