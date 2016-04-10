@@ -15,6 +15,8 @@
 #include "repo.h"
 #include "link.h"
 
+#define KEEP_ALIVE 1
+
 int
 main(int argc, char **argv)
 {
@@ -41,7 +43,8 @@ main(int argc, char **argv)
 
     uint8_t buffer[MTU];
     size_t numReceived = 0;
-    while (numReceived < numPackets) {
+    bool keepAlive = KEEP_ALIVE;
+    while (numReceived < numPackets || keepAlive) {
         bzero(buffer, MTU);
         numBytesReceived = link_Receive(link, buffer);
         if (numBytesReceived < 0) {
