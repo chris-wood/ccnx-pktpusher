@@ -35,7 +35,6 @@ typedef struct PacketTable {
 } PacketTable;
 
 typedef struct PusherOptions {
-    bool showUsageStats;
     bool sleep;
     size_t windowSize;
     size_t transportType;
@@ -69,10 +68,9 @@ void
 showUsage()
 {
     printf("Usage: pusher <options> <server IP address> <port> <packet file>\n");
-    printf(" -t       --transport         Transport mechansm (0 = UDP, 1 = TCP, 2 = ETH)");
+    printf(" -t       --transport         Transport mechanism (0 = UDP, 1 = TCP, 2 = ETH)");
     printf(" -p       --ping              Stop-and-wait mode (with intermittent sleep)\n");
     printf(" -f       --flood             Flood mode\n");
-    printf(" -r       --rusage            Print rusage\n");
     printf(" -w num   --window num        Stop and wait window size\n");
     printf(" -h       --help              Display the help message\n");
 }
@@ -84,7 +82,6 @@ parseCommandLineOptions(int argc, char **argv)
             { "transport",  required_argument,  NULL,'t' },
             { "ping",       no_argument,        NULL,'p' },
             { "flood",      no_argument,        NULL,'f' },
-            { "rusage",     no_argument,        NULL,'r'},
             { "window",     required_argument,  NULL,'w'},
             { "help",       no_argument,        NULL,'h'},
             { NULL,0,NULL,0}
@@ -101,11 +98,8 @@ parseCommandLineOptions(int argc, char **argv)
 
     int c;
     while (optind < argc) {
-        if ((c = getopt_long(argc, argv, "rphfw:t:", longopts, NULL)) != -1) {
+        if ((c = getopt_long(argc, argv, "phfw:t:", longopts, NULL)) != -1) {
             switch(c) {
-                case 'r':
-                    options->showUsageStats = true;
-                    break;
                 case 'p':
                     options->mode = PusherMode_Ping;
                     options->sleep = true;
@@ -429,15 +423,6 @@ displayPusherStats(PusherOptions *options, Pusher *pusher)
 {
     for (int i = 0; i < pusher->table->numberOfPackets; i++) {
         printf("%d,%llu\n", i, pusher->table->stats[i]->rtt);
-    }
-
-    if (options->showUsageStats) {
-        struct rusage r_usage;
-        getrusage(RUSAGE_SELF, &r_usage);
-        printf("# nvcsw=%lu\n", r_usage.ru_nvcsw);
-        printf("# nivcsw=%lu\n", r_usage.ru_nivcsw);
-        printf("# inblock=%lu\n", r_usage.ru_inblock);
-        printf("# outblock=%lu\n", r_usage.ru_oublock);
     }
 }
 
