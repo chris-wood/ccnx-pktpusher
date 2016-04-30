@@ -68,7 +68,7 @@ void
 showUsage()
 {
     printf("Usage: pusher <options> <server IP address> <port> <packet file>\n");
-    printf(" -t       --transport         Transport mechanism (0 = UDP, 1 = TCP, 2 = ETH)");
+    printf(" -t       --transport         Transport mechanism (0 = UDP, 1 = TCP, 2 = ETH)\n");
     printf(" -p       --ping              Stop-and-wait mode (with intermittent sleep)\n");
     printf(" -f       --flood             Flood mode\n");
     printf(" -w num   --window num        Stop and wait window size\n");
