@@ -113,6 +113,7 @@ _loadDataFromFile(char *fname)
         _displayBuffer(name);
         printf("\n");
 #endif
+
         // for (int i = 0; i < pktBuffer->length; i++) {
         //     printf("%02x", pktBuffer->bytes[i]);
         // }

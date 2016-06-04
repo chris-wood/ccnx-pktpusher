@@ -16,7 +16,7 @@ _getNameLength(uint8_t *buffer, size_t length)
 size_t
 _getNameIndex(uint8_t *buffer, size_t length)
 {
-    return 8; // 8 + 4 + 4
+    return 8; // 8 = 4 + 4 (2-2 for top-level, 2-2 for name TL)
 }
 
 size_t

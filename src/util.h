@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #ifndef UTIL_H_
 #define UTIL_H_
@@ -12,15 +13,8 @@
 #define FILE_BUFFER_LENGTH 256
 
 #define MAX_NUMBER_OF_TCP_CONNECTIONS 5
-#define MAX_NUMBER_OF_SCTP_OSTREAMS 5
-#define MAX_NUMBER_OF_SCTP_ISTREAMS 4
-#define MAX_NUMBER_OF_SCTP_ATTEMPTS 4
 
 #define DEBUG 1
-
-typedef unsigned char bool;
-#define true 1
-#define false 0
 
 typedef struct timeval TimeValue;
 
